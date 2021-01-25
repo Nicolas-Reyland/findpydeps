@@ -20,4 +20,4 @@ The maximum recursive folder-depth is manually set to 5 (see source code, consts
 There are some flaws tho:
 - imports have to be done at the beginning of lines in your python files (import .../from ... import ...)
 - some dependencies have different names when you install them/when you use them. (e.g. import cv2 / pip install opencv-python)
-- if you manually added your scripts into the sys.path or into the python library-folder, then import those scripts, they will be considered as dependencies (as opposed to local scripts, which are detected and not listed)
+- if you manually added your scripts to the sys.path or pasted them to the python library-folder and import those scripts, they will be considered as dependencies (as opposed to local scripts, which are detected and not listed)
