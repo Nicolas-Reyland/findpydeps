@@ -7,7 +7,7 @@ Example usage:
 
 
 The output can be redirected to a requirements.txt file, like this:
-- python find-dependencies.py . > requirements.txt
+- python find-dependencies.py . > requirements.txt (where "." is the current directory)
 - pip install -r requirements.txt
 
 The dependencies are detected by reading all the python files in the directories.
