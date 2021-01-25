@@ -5,11 +5,14 @@ Example usage:
 - python find-dependencies.py "C:\Documents\python\projects\"
 
 
+
 The output can be redirected to a requirements.txt file, like this:
 - python find-dependencies.py . > requirements.txt
 - pip install -r requirements.txt
 
 The dependencies are detected by reading all the python files in the directories.
+
+
 
 There are some problems tho:
 - imports have to be done at the beginning of lines in your python files (import .../from ... import ...)
