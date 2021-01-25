@@ -9,7 +9,7 @@ python find-dependencies.py "C:\Documents\python\projects\"
 
 The output can be redirected to a requirements.txt file, like this:
 ```
-python find-dependencies.py . > requirements.txt (where "." is the current directory)
+python find-dependencies.py . > requirements.txt # (where "." is the current directory)
 pip install -r requirements.txt
 ```
 
