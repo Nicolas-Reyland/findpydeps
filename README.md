@@ -18,7 +18,7 @@ python -m pip install -r requirements.txt
 ```
 
 The dependencies are detected by reading all the python files in the directories.
-The maximum recursive folder-depth is manually set to 5 (see source code -> *consts declared at the top*). The "\_\_pycache__" folders are not looked into.
+The maximum recursive folder-depth is manually set to 5 (see source code -> *consts declared at the top of the script*). The "\_\_pycache__" folders are not looked into.
 
 
 There are some flaws tho:
