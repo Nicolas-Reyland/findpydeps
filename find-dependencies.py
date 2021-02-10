@@ -66,7 +66,7 @@ if __name__ == '__main__':
 	root_path = sys.argv[1]
 	assert os.path.isdir(root_path)
 
-	print('### AUTOMATIC DEPENDENCIES SEARCH')
+	print('### AUTOMATIC DEPENDENCIES SEARCH (https://github.com/Nicolas-Reyland/list-py-modules)')
 	python_files = list_python_files(root_path, MAX_DEPTH)
 	dependencies = find_dependencies(python_files)
 	dependencies = set(dependencies)
