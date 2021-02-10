@@ -1,6 +1,6 @@
 # list-py-modules
-Get a list of all the python dependencies in a folder (and its subfolders, etc.) printed to your terminal.
-The modules from the python standart librariy are not listed.
+Get a list of all the python dependencies in a folder (and all its subfolders, etc.) printed to your terminal.
+The modules from the python standart librariy and the imports from local scripts are not listed.
 
 Example usage:
 ```
