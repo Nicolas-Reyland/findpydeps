@@ -4,14 +4,17 @@ The modules from the python standart librariy are not listed.
 
 Example usage:
 ```
-$ python find-dependencies.py "C:\Documents\python\projects\"
+python find-dependencies.py "C:\Documents\python\projects\"
 ```
 
 
 The output can be redirected to a requirements.txt file, like this:
 ```
-$ python find-dependencies.py . > requirements.txt # (where "." is the current directory)
-$ pip install -r requirements.txt
+python find-dependencies.py . > requirements.txt # (where "." is the current directory)
+```
+and then use the generated file:
+```
+python -m pip install -r requirements.txt
 ```
 
 The dependencies are detected by reading all the python files in the directories.
