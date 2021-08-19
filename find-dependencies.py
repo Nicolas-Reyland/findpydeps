@@ -63,7 +63,7 @@ def find_dependencies(files):
 
 if __name__ == '__main__':
 	assert sys.argv.__len__() == 2
-	root_path = sys.argv[1]
+	root_path = os.path.abspath(sys.argv[1])
 	assert os.path.isdir(root_path)
 
 	print('### AUTOMATIC DEPENDENCIES SEARCH (https://github.com/Nicolas-Reyland/list-py-modules)')
