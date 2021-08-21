@@ -1,16 +1,31 @@
 # find-py-dependencies
-Get a list of all the used python dependencies in a folder (and all its subfolders, etc.) printed to your terminal.
-The modules from the python standart librariy and the imports from local scripts are not listed.
+Find the python dependencies used by a python file.
+
+## Installation (for advanced usage only)
+
+Run the pypi module list update script:
+```
+./update-pypi-list.sh
+```
+
+Alternatively, run this:
+```
+wget -O - https://pypi.org/simple/ | grep '<a href=' | awk '$2' | cut -d '>' -f 2 | cut -d '<' -f 1 | awk '$0 ~ /^[A-z_][A-z_0-9]*$/' | grep "\S" > pypi-module-list.txt
+```
 
 Example usage:
 ```
-python find-dependencies.py "C:\Documents\python\projects\"
+python find-py-dependencies.py -i "/home/$USER/python/example-project/" test.py ../test2.py
 ```
 
 
 The output can be redirected to a requirements.txt file, like this:
 ```
-python find-dependencies.py . > requirements.txt
+./find-py-dependencies.py -i . > requirements.txt
+# or maybe a better alternative :
+# ./find-py-dependencies.py -i main.py -l
+# or (the same) :
+# ./find-py-dependencies.py --input main.py --follow-local-imports
 ```
 and then use the generated file:
 ```
