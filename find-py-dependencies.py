@@ -50,7 +50,7 @@ parser.add_argument(
     "-s",
     "--strict",
     action="store_true",
-    help="raise an error on syntaxerrors in the input python files",
+    help="raise an error on SyntaxErrors in the input python files",
 )
 
 parser.add_argument(
@@ -93,14 +93,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--header", dest="header", action="store_true", help="show the project header"
+    "--header", dest="header", action="store_true", help="show the greeting header"
 )
 
 parser.add_argument(
     "--no-header",
     dest="header",
     action="store_false",
-    help="don't show the project header",
+    help="don't show the greeting header",
 )
 
 parser.set_defaults(header=True)
