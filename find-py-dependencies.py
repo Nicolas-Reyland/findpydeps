@@ -9,7 +9,7 @@ import ast
 
 # - Setup the Argument Parser -
 parser = ArgumentParser(
-    description="Find the python dependencies used by your projects"
+    description="Find the python dependencies used by your python files"
 )
 
 parser.add_argument(
