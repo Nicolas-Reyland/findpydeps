@@ -1,4 +1,4 @@
-# list-py-modules
+# find-py-dependencies
 Get a list of all the used python dependencies in a folder (and all its subfolders, etc.) printed to your terminal.
 The modules from the python standart librariy and the imports from local scripts are not listed.
 
