@@ -1,5 +1,5 @@
 # find-py-dependencies
-Find the python dependencies used by a python file.
+Find the python dependencies used by your python files and projects.
 
 ## Installation (for advanced usage only)
 
