@@ -86,6 +86,13 @@ parser.add_argument(
 parser.set_defaults(functions=True)
 
 parser.add_argument(
+    "-p",
+    "--pypi",
+    action="store_true",
+    help='comment out all dependencies that are not usable in "pip install" (e.g. "cv2" is not valid for pip: "opencv-python" should be used, but we cannot know that)',
+)
+
+parser.add_argument(
     "-v",
     "--verbose",
     action="store_true",
@@ -326,8 +333,22 @@ PYTHON_STANDARD_MODULES: set[str] = {
 DEPENDENCIES: set[str] = set()
 READ_FILES: set[str] = set()
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+PYPI_MODULES_LIST_FILE_NAME = "pypi-modules-list.txt"
+PYPI_MODULES_LIST_FILE_PATH = os.path.join(ROOT_DIR, PYPI_MODULES_LIST_FILE_NAME)
+
 vprint = lambda *a, **k: None
 
+
+class ArgumentError(Exception):
+    def __init__(self, *args):
+        if args:
+            self.message = args[0]
+        else:
+            self.message = None
+
+    def __str__(self):
+        return f"ArgumentError: {self.message}" if self.message else "ArgumentError has been raised"
 
 get_module_name = lambda s: s.split(".")[0]
 
@@ -444,7 +465,7 @@ def find_file_dependencies(
 
 # - Main function -
 def main():
-    global DEPENDENCIES, USAGE_MSG, vprint
+    global DEPENDENCIES, USAGE_MSG, ROOT_DIR, PYPI_MODULES_LIST_FILE_NAME, vprint
 
     # parse the command line arguments
     args = vars(parser.parse_args())
@@ -456,6 +477,10 @@ def main():
     # validate removal policy
     if args["removal_policy"] < 0 or args["removal_policy"] > 3:
         raise ValueError(f'Invalid removal policy: {args["removal_policy"]}. {USAGE_MSG}')
+
+    # check for pypi list if needed
+    if args["pypi"] and not PYPI_MODULES_LIST_FILE_NAME in os.listdir(ROOT_DIR):
+        raise ArgumentError('Missing the pypi database. Please run the "update-pypi-list.sh" script first')
 
     # get values from args
     remove_local_imports = args["removal_policy"] < 2
