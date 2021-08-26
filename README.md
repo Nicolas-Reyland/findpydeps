@@ -2,7 +2,7 @@
 Find the python dependencies used by your python files and projects.
 
 ## Installation
-Siply install it via pip:
+Simply install it via pip:
 ```
 pip install findpydeps
 ```
