@@ -25,5 +25,5 @@ python3 -m findpydeps -i . > requirements.txt
 ```
 and then use the generated file:
 ```
-python -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
