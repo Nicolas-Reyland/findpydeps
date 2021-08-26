@@ -7,7 +7,6 @@ import os, sys, fnmatch
 import ast
 
 
-
 # - Setup the Argument Parser -
 
 # rename __main__ ?
@@ -358,9 +357,15 @@ class ArgumentError(Exception):
             self.message = None
 
     def __str__(self):
-        return f"ArgumentError: {self.message}" if self.message else "ArgumentError has been raised"
+        return (
+            f"ArgumentError: {self.message}"
+            if self.message
+            else "ArgumentError has been raised"
+        )
+
 
 get_module_name = lambda s: s.split(".")[0]
+
 
 def parse_input_file(input_file: str) -> ast.AST:
     global vprint
@@ -443,7 +448,10 @@ def find_file_dependencies(
 
     # remove local imports || following local imports
     if remove_local_imports or follow_local_imports:
-        for local_file in filter(os.path.isfile, map(lambda fn: os.path.join(dirpath, fn), os.listdir(dirpath))):
+        for local_file in filter(
+            os.path.isfile,
+            map(lambda fn: os.path.join(dirpath, fn), os.listdir(dirpath)),
+        ):
             file_name = os.path.basename(local_file)
             vprint(f"filename: {file_name}")
 
@@ -468,7 +476,14 @@ def find_file_dependencies(
             # follow local import
             if follow_local_imports and (as_tree := parse_input_file(local_file)):
                 vprint(f"following local import: {file_module_name}")
-                local_dependencies |= find_file_dependencies(local_file, as_tree, blocks, functions, remove_local_imports, follow_local_imports)
+                local_dependencies |= find_file_dependencies(
+                    local_file,
+                    as_tree,
+                    blocks,
+                    functions,
+                    remove_local_imports,
+                    follow_local_imports,
+                )
 
     return local_dependencies
 
@@ -491,7 +506,9 @@ def main():
 
     # validate removal policy
     if args["removal_policy"] < 0 or args["removal_policy"] > 3:
-        raise ValueError(f'Invalid removal policy: {args["removal_policy"]}. {USAGE_MSG}')
+        raise ValueError(
+            f'Invalid removal policy: {args["removal_policy"]}. {USAGE_MSG}'
+        )
 
     """
     # check for pypi list if needed
@@ -555,7 +572,14 @@ def main():
     for i in range(num_pairs):
         vprint(f"Doing AST {i+1}/{num_pairs}")
         file_path, as_tree = file_path_tree_pairs[i]
-        DEPENDENCIES |= find_file_dependencies(file_path, as_tree, args["blocks"], args["functions"], remove_local_imports, args["follow_local_imports"])
+        DEPENDENCIES |= find_file_dependencies(
+            file_path,
+            as_tree,
+            args["blocks"],
+            args["functions"],
+            remove_local_imports,
+            args["follow_local_imports"],
+        )
 
     # remove the python stdlib dependencies ?
     if args["removal_policy"] % 2 == 0:
@@ -588,10 +612,8 @@ def main():
             print(f"# {removed_dep}")
     """
 
-
     sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
-
