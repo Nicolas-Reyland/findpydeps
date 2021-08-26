@@ -8,7 +8,7 @@ pip install findpydeps
 ```
 
 ## Usage
-For the usage, please refer to the `findpydeps -h` output (or `python3 -m findpydeps -h`)
+For exhaustive usage information, please refer to the `findpydeps -h` output (or `python3 -m findpydeps -h`)
 
 Example usage:
 ```
