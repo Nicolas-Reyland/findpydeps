@@ -13,7 +13,7 @@ import ast
 # rename __main__ ?
 renamed_sys_argv0 = False
 if sys.argv[0].endswith("__main__.py"):
-    sys.argv[0] = sys.argv[0][:-11] + "findpydeps.py"
+    sys.argv[0] = sys.argv[0][:-11] + "findpydeps"
     renamed_sys_argv0 = True
 
 parser = ArgumentParser(
@@ -21,7 +21,7 @@ parser = ArgumentParser(
 )
 
 if renamed_sys_argv0:
-    sys.argv[0] = sys.argv[0][:-13] + "__main__.py"
+    sys.argv[0] = sys.argv[0][:-10] + "__main__.py"
 
 parser.add_argument(
     "-i",

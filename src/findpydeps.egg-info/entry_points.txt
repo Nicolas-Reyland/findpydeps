@@ -1,0 +1,3 @@
+[console_scripts]
+findpydeps = findpydeps.__main__:main
+

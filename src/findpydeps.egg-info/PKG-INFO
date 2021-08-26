@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: findpydeps
-Version: 0.1.0
+Version: 0.1.1
 Summary: Find the python dependencies used by your python files and projects
 Home-page: https://github.com/Nicolas-Reyland/findpydeps
 Author: Nicolas Reyland
@@ -41,7 +41,7 @@ python3 -m findpydeps -i . > requirements.txt
 ```
 and then use the generated file:
 ```
-python -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 

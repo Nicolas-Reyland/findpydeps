@@ -8,4 +8,5 @@ src/findpydeps/findpydeps.py
 src/findpydeps.egg-info/PKG-INFO
 src/findpydeps.egg-info/SOURCES.txt
 src/findpydeps.egg-info/dependency_links.txt
+src/findpydeps.egg-info/entry_points.txt
 src/findpydeps.egg-info/top_level.txt
