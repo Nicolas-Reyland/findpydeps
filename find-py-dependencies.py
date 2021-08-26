@@ -335,7 +335,6 @@ READ_FILES: set[str] = set()
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 PYPI_MODULES_LIST_FILE_NAME = "pypi-modules-list.txt"
-PYPI_MODULES_LIST_FILE_PATH = os.path.join(ROOT_DIR, PYPI_MODULES_LIST_FILE_NAME)
 
 vprint = lambda *a, **k: None
 
@@ -546,12 +545,26 @@ def main():
         global PYTHON_STANDARD_MODULES
         DEPENDENCIES -= PYTHON_STANDARD_MODULES
 
+    # remove the pkgs that are not in the pypi list ?
+    if args["pypi"]:
+        vprint("Removing the dependencies that are not in the pypi pkg list")
+        pypi_list_file_path = os.path.join(ROOT_DIR, PYPI_MODULES_LIST_FILE_NAME)
+        with open(pypi_list_file_path, 'r') as pypi_list_file:
+            pypi_modules = set(pypi_list_file.read().split('\n'))
+            PYPI_REMOVED_SET = DEPENDENCIES - pypi_modules
+            DEPENDENCIES &= pypi_modules
+
     # finally output the content of the dependencies
     vprint()
     vprint("Done. Printing the module names")
 
     for dep in list(DEPENDENCIES):
         print(dep)
+
+    if args["pypi"]:
+        vprint("Dependencies removed bc of the pypi list")
+        for removed_dep in list(PYPI_REMOVED_SET):
+            print(f"# {removed_dep}")
 
 
 if __name__ == "__main__":
