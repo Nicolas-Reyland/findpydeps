@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: findpydeps
-Version: 0.0.2
+Version: 0.0.3
 Summary: Find the python dependencies used by your python files and projects
 Home-page: https://github.com/Nicolas-Reyland/findpydeps
 Author: Nicolas Reyland
@@ -18,7 +18,7 @@ License-File: LICENSE
 Find the python dependencies used by your python files and projects.
 
 ## Installation
-Siply install it via pip:
+Simply install it via pip:
 ```
 pip install findpydeps
 ```
