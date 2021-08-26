@@ -7,10 +7,21 @@ import os, sys, fnmatch
 import ast
 
 
+
 # - Setup the Argument Parser -
+
+# rename __main__ ?
+renamed_sys_argv0 = False
+if sys.argv[0].endswith("__main__.py"):
+    sys.argv[0] = sys.argv[0][:-11] + "findpydeps.py"
+    renamed_sys_argv0 = True
+
 parser = ArgumentParser(
     description="Find the python dependencies used by your python files"
 )
+
+if renamed_sys_argv0:
+    sys.argv[0] = sys.argv[0][:-13] + "__main__.py"
 
 parser.add_argument(
     "-i",
