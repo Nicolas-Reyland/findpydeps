@@ -1,3 +1,19 @@
+Metadata-Version: 2.1
+Name: findpydeps
+Version: 0.0.1
+Summary: Find the python dependencies used by your python files and projects
+Home-page: https://github.com/Nicolas-Reyland/findpydeps
+Author: Nicolas Reyland
+License: UNKNOWN
+Project-URL: Bug Tracker, https://github.com/Nicolas-Reyland/findpydeps/issues
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
 # findpydeps
 Find the python dependencies used by your python files and projects.
 
@@ -20,3 +36,5 @@ and then use the generated file:
 ```
 python -m pip install -r requirements.txt
 ```
+
+

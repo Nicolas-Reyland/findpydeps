@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+src/findpydeps/__init__.py
+src/findpydeps/__main__.py
+src/findpydeps/findpydeps.py
+src/findpydeps.egg-info/PKG-INFO
+src/findpydeps.egg-info/SOURCES.txt
+src/findpydeps.egg-info/dependency_links.txt
+src/findpydeps.egg-info/top_level.txt
