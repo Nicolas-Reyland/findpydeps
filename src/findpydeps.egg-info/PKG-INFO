@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: findpydeps
-Version: 0.1.1
+Version: 0.1.2
 Summary: Find the python dependencies used by your python files and projects
 Home-page: https://github.com/Nicolas-Reyland/findpydeps
 Author: Nicolas Reyland
@@ -24,20 +24,20 @@ pip install findpydeps
 ```
 
 ## Usage
-For the usage, please refer to the `python3 -m findpydeps -h` output
+For the usage, please refer to the `findpydeps -h` output (or `python3 -m findpydeps -h`)
 
 Example usage:
 ```
-python3 -m findpydeps -i "/home/$USER/python/example-project/" test.py ../test2.py
+findpydeps -i "/home/$USER/python/example-project/" test.py ../test2.py
 ```
 
 The output can be redirected to a requirements.txt file, like this:
 ```
-python3 -m findpydeps -i . > requirements.txt
+findpydeps -i . > requirements.txt
 # or maybe a better alternative :
-# python3 -m findpydeps -i main.py -l
+# findpydeps -i main.py -l
 # or (the same) :
-# python3 -m findpydeps --input main.py --follow-local-imports
+# findpydeps --input main.py --follow-local-imports
 ```
 and then use the generated file:
 ```
