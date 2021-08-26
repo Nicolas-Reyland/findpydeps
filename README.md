@@ -1,6 +1,13 @@
 # findpydeps
 Find the python dependencies used by your python files and projects.
 
+## Installation
+Siply install it via pip:
+```
+pip install findpydeps
+```
+
+## Usage
 For the usage, please refer to the `python3 -m findpydeps -h` output
 
 Example usage:
