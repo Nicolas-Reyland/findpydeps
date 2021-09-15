@@ -492,11 +492,12 @@ def modules_from_ast_import_object(
         # from abc import xyz (as ijk)
         import_set = set()
 
-        global_imports, local_imports_files = get_module_names_in_import_from_obj(
+        global_imports, local_import_files = get_module_names_in_import_from_obj(
             obj, current_path, args
         )
 
-        return global_imports, local_imports_files
+        vprint(f"from import: {global_imports}, {local_import_files}")
+        return global_imports, local_import_files
     else:
         # import abc (as xyz)
         assert T is ast.Import
@@ -508,7 +509,7 @@ def modules_from_ast_import_object(
             if "." in import_name:
                 file_path = path_from_relative_import(current_path, import_name)[1]
                 file_path_dir = os.path.dirname(file_path)
-                if os.path.isdir(file_path_dir) and any(
+                if os.path.isfile(file_path + ".py") or os.path.isdir(file_path_dir) and any(
                     map(
                         lambda fn: os.path.basename(fn).split(".py")[0] == import_name
                         if fn.count(".py") > 0
@@ -521,6 +522,7 @@ def modules_from_ast_import_object(
 
             # default step
             global_imports.add(get_module_name_in_simple_import(import_name))
+        vprint(f"simple import: {global_imports}, {local_import_files}")
         return global_imports, local_import_files
 
 
