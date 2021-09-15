@@ -333,8 +333,8 @@ PYTHON_STANDARD_MODULES: set[str] = {
     "zoneinfo",
 }  # this set was definately not written manually. I love selenium !!!
 
-DEPENDENCIES: set[str] = set()
-READ_FILES: set[str] = set()
+DEPENDENCIES: set[str] = list()
+READ_FILES: set[str] = list()
 
 ROOT_DIR: str = os.path.dirname(os.path.abspath(__file__))
 
@@ -412,7 +412,7 @@ def get_module_names_in_import_from_obj(
     if not obj.module:
         if obj.level == 0:
             vprint(f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}")
-            return set(), set()
+            return list(), list()
         obj.module = "." * (obj.level - 1)
     if "." in obj.module:
         must_be_dir, potential_path = path_from_relative_import(current_path, obj.module)
@@ -437,13 +437,13 @@ def get_module_names_in_import_from_obj(
             )
         ):
             print("filename", potential_path_filename)
-            return set(), {potential_path}
+            return list(), [potential_path]
         if os.path.isdir(potential_path):
             print("isdir")
             print(obj.__dict__)
             print(obj.names, obj.names[0].__dict__)
 
-            return set(), set([os.path.join(potential_path, alias.name) for alias in obj.names])
+            return list(), set([os.path.join(potential_path, alias.name) for alias in obj.names])
 
         sys.exit("QWERTY")  # TODO: remove this, or explore this at least
     else:
@@ -455,10 +455,10 @@ def get_module_names_in_import_from_obj(
                     files_in_dir(current_path),
                 )):
             # import is local
-            return set(), {os.path.join(current_path, raw_name)}
+            return list(), [os.path.join(current_path, raw_name)]
         else:
             # import is non-local
-            return {raw_name}, set()
+            return [raw_name], list()
 
 
 def parse_input_file(input_file: str) -> ast.AST:
@@ -483,7 +483,7 @@ def modules_from_ast_import_object(
     T = type(obj)
     if T is ast.ImportFrom:
         # from abc import xyz (as ijk)
-        import_set = set()
+        import_set = list()
 
         global_imports, local_imports_files = get_module_names_in_import_from_obj(
             obj, current_path, args
@@ -494,7 +494,7 @@ def modules_from_ast_import_object(
         """
         if obj.level != 0:
             # relative & local import
-            additional_imports = set()
+            additional_imports = list()
             if args["follow_local_imports"]:
                 # follow the local imports
                 if obj.module:
@@ -503,10 +503,10 @@ def modules_from_ast_import_object(
                         obj, current_path, args
                     )
                     # add the global imports
-                    additional_imports |= global_imports
+                    additional_imports .extend( global_imports
                     # add the local imports if should be done
                     if not args["remove_local_imports"]:
-                        additional_imports |= local_imports
+                        additional_imports .extend( local_imports
 
                     print("following explicit local imports ...", additional_imports)
                     print(obj.__dict__)
@@ -516,25 +516,25 @@ def modules_from_ast_import_object(
                 return additional_imports
             elif args["remove_local_imports"]:
                 # do not follow and remove local imports
-                return set()
+                return list()
             elif obj.module:
                 # do not follow and do not remove local imports (apparent non-local import)
                 return get_module_names_in_import_from_obj(obj, current_path, args)
             else:
                 # TODO: look into this case (possible? warning?)
-                return set()
+                return list()
         elif obj.module:
             # apparent non-local import
             return get_module_names_in_import_from_obj(obj, current_path, args)
         else:
             # TODO: look into this case (possible? warning?)
-            return set()
+            return list()
         """
     else:
         # import abc (as xyz)
         assert T is ast.Import
         # TODO: check for local import
-        return set(map(lambda alias: get_module_name_in_simple_import(alias.name), obj.names)), set()
+        return set(map(lambda alias: get_module_name_in_simple_import(alias.name), obj.names)), list()
 
 
 def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tuple[set[str], set[str], set[str]]:
@@ -544,9 +544,9 @@ def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tup
     assert issubclass(T, ast.AST)
 
     if not args["blocks"] and T in [ast.If, ast.With, ast.Try]:
-        return set(), set()
+        return list(), list()
     if not args["functions"] and T is ast.FunctionDef:
-        return set(), set()
+        return list(), list()
 
     # is the current ast object an import ?
     if T is ast.Import or T is ast.ImportFrom:
@@ -554,9 +554,9 @@ def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tup
         vprint(f"global: {global_deps}, local files: {local_deps_files}")
         return global_deps, local_deps_files
 
-    modules: set[str] = set()
+    modules: set[str] = list()
     # try to iterate through python object properties that could, somewhere deeply nested, have ast-import objects in them
-    global_deps, local_deps_files = set(), set()
+    global_deps, local_deps_files = list(), list()
     for attr_name, attr_value in filter(
         lambda key_value: not key_value[0].startswith("_"), obj.__dict__.items()
     ):
@@ -568,8 +568,8 @@ def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tup
         ):
             for sub_obj in attr_value:
                 sub_global_deps, sub_local_deps_files = handle_ast_object(sub_obj, ast_path, args)
-                global_deps       |=       sub_global_deps
-                local_deps_files  |=  sub_local_deps_files
+                global_deps       .extend(       sub_global_deps)
+                local_deps_files  .extend(  sub_local_deps_files)
     return global_deps, local_deps_files
 
 
@@ -589,8 +589,8 @@ def find_file_dependencies(
 
     # add file to the read files
     if input_file in READ_FILES:
-        return set()
-    READ_FILES.add(input_file)
+        return list()
+    READ_FILES.append(input_file)
 
     dirpath = os.path.dirname(input_file)
     global_dependencies, local_dependencies_file_set = handle_ast_object(as_tree, dirpath, args)
@@ -609,7 +609,7 @@ def find_file_dependencies(
             # add the local import ?
             if not args["remove_local_imports"]:
                 vprint(f"adding local import: {local_import_name}")
-                global_dependencies.add(local_import_name)
+                global_dependencies.append(local_import_name)
 
             # follow the local import ?
             if args["follow_local_imports"] and (
@@ -617,7 +617,7 @@ def find_file_dependencies(
             ):
                 # python only seems to accept *.py files
                 vprint(f"following local import: {local_import_name}")
-                global_dependencies |= find_file_dependencies(local_import_file_path, as_tree, args)
+                global_dependencies .extend( find_file_dependencies(local_import_file_path, as_tree, args))
 
     return global_dependencies
 
@@ -700,7 +700,7 @@ def main() -> None:
     for i in range(num_pairs):
         vprint(f"Doing AST {i+1}/{num_pairs}")
         file_path, as_tree = file_path_tree_pairs[i]
-        DEPENDENCIES |= find_file_dependencies(file_path, as_tree, args)
+        DEPENDENCIES .extend( find_file_dependencies(file_path, as_tree, args))
 
     # remove the python stdlib dependencies ?
     if args["removal_policy"] % 2 == 0:
