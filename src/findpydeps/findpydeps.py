@@ -464,7 +464,6 @@ def get_module_names_in_import_from_obj(
         )
 
     global_import = get_module_name_in_simple_import(obj.module)
-
     vprint(f"import is global: {global_import}")
 
     return {global_import}, set()
@@ -508,22 +507,28 @@ def modules_from_ast_import_object(
         local_import_files = set()
         for alias in obj.names:
             import_name = alias.name
-            if "." in import_name:
-                file_path = path_from_relative_import(current_path, import_name)[1]
-                file_path_dir = os.path.dirname(file_path)
-                if os.path.isfile(file_path + ".py") or os.path.isdir(file_path_dir) and any(
+            # check for local import
+            file_path = path_from_relative_import(current_path, import_name)[1]
+            file_path_dir = os.path.dirname(file_path)
+            if (
+                os.path.isfile(file_path + ".py")
+                or os.path.isdir(file_path_dir)
+                and any(
                     map(
                         lambda fn: os.path.basename(fn).split(".py")[0] == import_name
                         if fn.count(".py") > 0
                         else False,
                         files_in_dir(file_path_dir),
                     )
-                ):
-                    local_import_files.add(file_path)
-                    continue
+                )
+            ):
+                # simple local import
+                local_import_files.add(file_path)
+                continue
 
             # default step
             global_imports.add(get_module_name_in_simple_import(import_name))
+
         vprint(f"simple import: {global_imports}, {local_import_files}")
         return global_imports, local_import_files
 
@@ -595,7 +600,7 @@ def find_file_dependencies(
     )
 
     # remove local imports? && following local imports?
-    if args["remove_local_imports"] or args["follow_local_imports"]:
+    if not args["remove_local_imports"] or args["follow_local_imports"]:
         # go through each file
         while local_dependencies_file_set:
             # take next file path
@@ -616,7 +621,9 @@ def find_file_dependencies(
                 # TODO: make sure we don't follow circular imports
                 # python only seems to accept *.py files
                 vprint(f"following local import: {local_import_name}")
-                global_dependencies |= find_file_dependencies(local_import_file_path, as_tree, args)
+                global_dependencies |= find_file_dependencies(
+                    local_import_file_path, as_tree, args
+                )
 
     return global_dependencies
 
