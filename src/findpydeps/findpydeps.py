@@ -472,6 +472,10 @@ def get_module_names_in_import_from_obj(
 def parse_input_file(input_file: str) -> ast.AST:
     global vprint
 
+    if not os.path.isfile(input_file):
+        vprint(f"WARNING: input file does not exist: {input_file}")
+        return None
+
     with open(input_file, "r") as file:
         content = file.read()
         try:
