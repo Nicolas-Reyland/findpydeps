@@ -463,9 +463,11 @@ def get_module_names_in_import_from_obj(
             [os.path.join(potential_path, alias.name) for alias in obj.names]
         )
 
-    vprint(f"import is global: {obj.module}")
+    global_import = get_module_name_in_simple_import(obj.module)
 
-    return {obj.module}, set()
+    vprint(f"import is global: {global_import}")
+
+    return {global_import}, set()
 
 
 def parse_input_file(input_file: str) -> ast.AST:
