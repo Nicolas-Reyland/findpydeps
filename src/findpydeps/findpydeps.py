@@ -340,7 +340,6 @@ ROOT_DIR: str = os.path.dirname(os.path.abspath(__file__))
 
 # Lambdas
 vprint = lambda *a, **k: None
-get_module_name = lambda s: s.split(".")[0]
 
 
 # Custom Exception
@@ -360,6 +359,102 @@ class ArgumentError(Exception):
 
 
 # Functions
+def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool & str]:
+    import_str_len: int = len(import_str)
+    assert import_str_len > 0
+
+    # case where we only have dots '.'
+    if import_str.count(".") == import_str_len:
+        return True, os.path.join(base_path, *parse_multiple_dots_expr(import_str_len))
+
+    # start extracting from the import str ...
+    separate_path_exprs: list[str] = list()
+    path_buffer: str = ""
+    num_dots: int = 0
+
+    for c in import_str:
+        if c == ".":
+            num_dots += 1
+            # add buffer to list
+            if path_buffer:
+                separate_path_exprs.append(path_buffer)
+                path_buffer = ""
+        else:
+            # b4 adding the char or anything, process the dots if not done
+            if num_dots != 0:
+                separate_path_exprs.extend(parse_multiple_dots_expr(num_dots))
+                num_dots = 0
+            path_buffer += c
+
+    # process the last path expr
+    if num_dots:
+        # remaining dots
+        separate_path_exprs.extend(parse_multiple_dots_expr(num_dots))
+    else:
+        # remaining path expr (there must be a path expr, bc there are no dots, apparently)
+        separate_path_exprs.append(path_buffer)
+
+    return False, os.path.join(base_path, *separate_path_exprs)
+
+
+get_module_name_in_import = (
+    lambda import_name: import_name.split(".")[0] if "." in import_name else import_name
+)
+
+
+parse_multiple_dots_expr = lambda num_dots: [".." for _ in range(num_dots - 1)]
+
+
+def get_module_names_in_import_from_obj(
+    obj: ast.ImportFrom, current_path: str, args: dict[str, bool]
+) -> tuple[set[str], set[str]]:
+    """ first set: non-local imports & second set: local imports """
+    if "." in obj.module:
+        must_be_dir, potential_path = path_from_relative_import(current_path, obj.module)
+        print(f"(potential_path: {potential_path})")
+        # first check for files, then for directories (tested in python 3.8.10)
+        potential_path_dirname = os.path.dirname(potential_path)
+        potential_path_filename = os.path.basename(potential_path)
+        # to check if file exists:
+        #  - make sure it can be a file, looking at the python import string (`not must_be_dir`)
+        #  - check if directory which it should be in exists
+        #  - check if any of the files in this directory are in this format: /(filename)(.py[^\.]*)/
+        if (
+            not must_be_dir
+            and os.path.isdir(potential_path_dirname)
+            and any(
+                map(
+                    lambda fn: os.path.basename(fn).split(".py")[0] == potential_path_filename
+                    if fn.count(".py") > 0
+                    else False,
+                    files_in_dir(potential_path_dirname),
+                )
+            )
+        ):
+            print("filename", potential_path_filename)
+            return set(), {potential_path_filename}
+        if os.path.isdir(potential_path):
+            print("isdir")
+            print(obj.__dict__)
+            print(obj.names, obj.names[0].__dict__)
+            sys.exit("end2")
+
+            return set(), local_imports
+        sys.exit("QWERTY")  # TODO: remove this, or explore this at least
+    else:
+        if any(map(
+                    lambda fn: os.path.basename(fn).split(".py")[0] == raw_name
+                    if fn.count(".py") > 0
+                    else False,
+                    files_in_dir(current_path),
+                )):
+            # import is local
+            return set(), {raw_name}
+        else:
+            # import is non-local
+            return {raw_name}, set()
+
+
 def parse_input_file(input_file: str) -> ast.AST:
     global vprint
 
@@ -374,7 +469,9 @@ def parse_input_file(input_file: str) -> ast.AST:
     return as_tree
 
 
-def modules_from_ast_import_object(obj: ast.Import | ast.ImportFrom, args: dict[str, bool]) -> set[str]:
+def modules_from_ast_import_object(
+    obj: ast.Import | ast.ImportFrom, current_path: str, args: dict[str, bool]
+) -> set[str]:
     global vprint
 
     T = type(obj)
@@ -384,9 +481,20 @@ def modules_from_ast_import_object(obj: ast.Import | ast.ImportFrom, args: dict[
             # relative & local import
             additional_imports = set()
             if args["follow_local_imports"]:
-                if not args["remove_local_imports"] and obj.module:
-                    additional_imports |= {get_module_name(obj.module)}
+                if obj.module:
+                    # get the imports
+                    global_imports, local_imports = get_module_names_in_import_from_obj(
+                        obj, current_path, args
+                    )
+                    # add the global imports
+                    additional_imports |= global_imports
+                    # add the local imports if should be done
+                    if not args["remove_local_imports"]:
+                        additional_imports |= local_imports
                     print("following explicit local imports ...", additional_imports)
+                    print(obj.__dict__)
+                    print(obj.names[0].__dict__)
+                    sys.exit("end")
 
                 return additional_imports
             elif args["remove_local_imports"]:
@@ -394,23 +502,23 @@ def modules_from_ast_import_object(obj: ast.Import | ast.ImportFrom, args: dict[
                 return set()
             elif obj.module:
                 # do not follow and do not remove local imports (apparent non-local import)
-                return {get_module_name(obj.module)}
+                return get_module_names_in_import_from_obj(obj, current_path, args)
             else:
                 # TODO: look into this case (possible? warning?)
                 return set()
         elif obj.module:
             # apparent non-local import
-            return {get_module_name(obj.module)}
+            return get_module_names_in_import_from_obj(obj, current_path, args)
         else:
             # TODO: look into this case (possible? warning?)
             return set()
     else:
         # import abc (as xyz)
         assert T is ast.Import
-        return set(map(lambda name: get_module_name(name.name), obj.names))
+        return set(map(lambda alias: get_module_name_in_import(alias.name), obj.names))
 
 
-def handle_ast_object(obj: ast.AST, args: dict[str, bool]) -> set[str]:
+def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> set[str]:
     global vprint
 
     T = type(obj)
@@ -421,29 +529,36 @@ def handle_ast_object(obj: ast.AST, args: dict[str, bool]) -> set[str]:
     if not args["functions"] and T is ast.FunctionDef:
         return set()
 
-    if T in [ast.Import, ast.ImportFrom]:
-        modules = modules_from_ast_import_object(obj, args)
+    # is the current ast object an import ?
+    if T is ast.Import or T is ast.ImportFrom:
+        modules: set[str] = modules_from_ast_import_object(obj, ast_path, args)
         vprint(f"Modules found: {modules}")
         return modules
 
     modules: set[str] = set()
+    # try to iterate through python object properties that could, somewhere deeply nested, have ast-import objects in them
     for attr_name, attr_value in filter(
         lambda key_value: not key_value[0].startswith("_"), obj.__dict__.items()
     ):
+        # attributes are lists of ast.AST derivatives ? iterating through them could be wise, when searching for imports
         if (
             attr_value
             and type(attr_value) is list
             and issubclass(type(attr_value[0]), ast.AST)
         ):
             for sub_obj in attr_value:
-                modules |= handle_ast_object(sub_obj, args)
+                modules |= handle_ast_object(sub_obj, ast_path, args)
     return modules
 
 
+def files_in_dir(dirpath: str) -> filter[str]:
+    return filter(
+        os.path.isfile, map(lambda fn: os.path.join(dirpath, fn), os.listdir(dirpath))
+    )
+
+
 def find_file_dependencies(
-    input_file: str,
-    as_tree: ast.AST,
-    args: dict[str, bool]
+    input_file: str, as_tree: ast.AST, args: dict[str, bool]
 ) -> set[str]:
     global READ_FILES, vprint
 
@@ -456,14 +571,11 @@ def find_file_dependencies(
     READ_FILES.add(input_file)
 
     dirpath = os.path.dirname(input_file)
-    local_dependencies = handle_ast_object(as_tree, args)
+    local_dependencies = handle_ast_object(as_tree, dirpath, args)
 
     # remove local imports || following local imports
     if args["remove_local_imports"] or args["follow_local_imports"]:
-        for local_file in filter(
-            os.path.isfile,
-            map(lambda fn: os.path.join(dirpath, fn), os.listdir(dirpath)),
-        ):
+        for local_file in files_in_dir(dirpath):
             file_name = os.path.basename(local_file)
             vprint(f"filename: {file_name}")
 
@@ -486,13 +598,11 @@ def find_file_dependencies(
                 local_dependencies.remove(file_module_name)
 
             # follow local import
-            if args["follow_local_imports"] and (as_tree := parse_input_file(local_file)):
+            if args["follow_local_imports"] and (
+                as_tree := parse_input_file(local_file)
+            ):
                 vprint(f"following local import: {file_module_name}")
-                local_dependencies |= find_file_dependencies(
-                    local_file,
-                    as_tree,
-                    args
-                )
+                local_dependencies |= find_file_dependencies(local_file, as_tree, args)
 
     return local_dependencies
 
@@ -575,11 +685,7 @@ def main() -> None:
     for i in range(num_pairs):
         vprint(f"Doing AST {i+1}/{num_pairs}")
         file_path, as_tree = file_path_tree_pairs[i]
-        DEPENDENCIES |= find_file_dependencies(
-            file_path,
-            as_tree,
-            args
-        )
+        DEPENDENCIES |= find_file_dependencies(file_path, as_tree, args)
 
     # remove the python stdlib dependencies ?
     if args["removal_policy"] % 2 == 0:
