@@ -374,33 +374,55 @@ def parse_input_file(input_file: str) -> ast.AST:
     return as_tree
 
 
-def modules_from_ast_import_object(obj: ast.Import | ast.ImportFrom) -> set[str]:
+def modules_from_ast_import_object(obj: ast.Import | ast.ImportFrom, args: dict[str, bool]) -> set[str]:
     global vprint
 
     T = type(obj)
     if T is ast.ImportFrom:
-        if obj.level != 0 and remove_local_imports:
-            return set()
-        if obj.module:
+        # from abc import xyz (as ijk)
+        if obj.level != 0:
+            # relative & local import
+            additional_imports = set()
+            if args["follow_local_imports"]:
+                if not args["remove_local_imports"] and obj.module:
+                    additional_imports |= {get_module_name(obj.module)}
+                    print("following explicit local imports ...", additional_imports)
+
+                return additional_imports
+            elif args["remove_local_imports"]:
+                # do not follow and remove local imports
+                return set()
+            elif obj.module:
+                # do not follow and do not remove local imports (apparent non-local import)
+                return {get_module_name(obj.module)}
+            else:
+                # TODO: look into this case (possible? warning?)
+                return set()
+        elif obj.module:
+            # apparent non-local import
             return {get_module_name(obj.module)}
-        return set()
-    assert T is ast.Import
-    return set(map(lambda name: get_module_name(name.name), obj.names))
+        else:
+            # TODO: look into this case (possible? warning?)
+            return set()
+    else:
+        # import abc (as xyz)
+        assert T is ast.Import
+        return set(map(lambda name: get_module_name(name.name), obj.names))
 
 
-def handle_ast_object(obj: ast.AST, blocks: bool, functions: bool) -> set[str]:
+def handle_ast_object(obj: ast.AST, args: dict[str, bool]) -> set[str]:
     global vprint
 
     T = type(obj)
     assert issubclass(T, ast.AST)
 
-    if not blocks and T in [ast.If, ast.With, ast.Try]:
+    if not args["blocks"] and T in [ast.If, ast.With, ast.Try]:
         return set()
-    if not functions and T is ast.FunctionDef:
+    if not args["functions"] and T is ast.FunctionDef:
         return set()
 
     if T in [ast.Import, ast.ImportFrom]:
-        modules = modules_from_ast_import_object(obj)
+        modules = modules_from_ast_import_object(obj, args)
         vprint(f"Modules found: {modules}")
         return modules
 
@@ -414,17 +436,14 @@ def handle_ast_object(obj: ast.AST, blocks: bool, functions: bool) -> set[str]:
             and issubclass(type(attr_value[0]), ast.AST)
         ):
             for sub_obj in attr_value:
-                modules |= handle_ast_object(sub_obj, blocks, functions)
+                modules |= handle_ast_object(sub_obj, args)
     return modules
 
 
 def find_file_dependencies(
     input_file: str,
     as_tree: ast.AST,
-    blocks: bool,
-    functions: bool,
-    remove_local_imports: bool,
-    follow_local_imports: bool,
+    args: dict[str, bool]
 ) -> set[str]:
     global READ_FILES, vprint
 
@@ -437,10 +456,10 @@ def find_file_dependencies(
     READ_FILES.add(input_file)
 
     dirpath = os.path.dirname(input_file)
-    local_dependencies = handle_ast_object(as_tree, blocks, functions)
+    local_dependencies = handle_ast_object(as_tree, args)
 
     # remove local imports || following local imports
-    if remove_local_imports or follow_local_imports:
+    if args["remove_local_imports"] or args["follow_local_imports"]:
         for local_file in filter(
             os.path.isfile,
             map(lambda fn: os.path.join(dirpath, fn), os.listdir(dirpath)),
@@ -462,20 +481,17 @@ def find_file_dependencies(
                 continue
 
             # remove local imports
-            if remove_local_imports:
+            if args["remove_local_imports"]:
                 vprint(f"removing local import: {file_module_name}")
                 local_dependencies.remove(file_module_name)
 
             # follow local import
-            if follow_local_imports and (as_tree := parse_input_file(local_file)):
+            if args["follow_local_imports"] and (as_tree := parse_input_file(local_file)):
                 vprint(f"following local import: {file_module_name}")
                 local_dependencies |= find_file_dependencies(
                     local_file,
                     as_tree,
-                    blocks,
-                    functions,
-                    remove_local_imports,
-                    follow_local_imports,
+                    args
                 )
 
     return local_dependencies
@@ -503,8 +519,8 @@ def main() -> None:
             f'Invalid removal policy: {args["removal_policy"]}. {USAGE_MSG}'
         )
 
-    # get values from args
-    remove_local_imports = args["removal_policy"] < 2
+    # setup args missng values
+    args["remove_local_imports"] = args["removal_policy"] < 2
 
     # init files & directories
     input_files = list()
@@ -539,7 +555,7 @@ def main() -> None:
 
         vprint()
         vprint("verbose mode")
-        vprint(f"params: {args}")
+        vprint(f"args: {args}")
 
     # parse the input files into abstract syntax trees
     vprint()
@@ -562,10 +578,7 @@ def main() -> None:
         DEPENDENCIES |= find_file_dependencies(
             file_path,
             as_tree,
-            args["blocks"],
-            args["functions"],
-            remove_local_imports,
-            args["follow_local_imports"],
+            args
         )
 
     # remove the python stdlib dependencies ?
