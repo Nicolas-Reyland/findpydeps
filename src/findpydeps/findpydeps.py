@@ -333,8 +333,8 @@ PYTHON_STANDARD_MODULES: set[str] = {
     "zoneinfo",
 }  # this set was definately not written manually. I love selenium !!!
 
-DEPENDENCIES: set[str] = list()
-READ_FILES: set[str] = list()
+DEPENDENCIES: set[str] = set()
+READ_FILES: set[str] = set()
 
 ROOT_DIR: str = os.path.dirname(os.path.abspath(__file__))
 
@@ -416,7 +416,7 @@ def get_module_names_in_import_from_obj(
             vprint(
                 f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}"
             )
-            return list(), list()
+            return set(), set()
         obj.module = "." * obj.level
         vprint("NONE: Changing obj.module to", obj.module)
 
@@ -446,26 +446,26 @@ def get_module_names_in_import_from_obj(
         )
     ):
         vprint(f"import refers to a file: {potential_path_filename}")
-        return list(), [potential_path]
+        return set(), {potential_path}
     if os.path.isdir(potential_path):
         vprint(f"import refers to a directory: {potential_path}")
 
         if len(obj.names) == 1 and obj.names[0].name == "*":
-            # python 3.9 : return list(), list(map(lambda fp: fp.removesuffix(".py"), fnmatch.filter(files_in_dir(potential_path), "*.py")))
-            return list(), list(
+            # python 3.9 : return set(), set(map(lambda fp: fp.removesuffix(".py"), fnmatch.filter(files_in_dir(potential_path), "*.py")))
+            return set(), set(
                 map(
                     lambda fp: fp[:-3],
                     fnmatch.filter(files_in_dir(potential_path), "*.py"),
                 )
             )
 
-        return list(), list(
+        return set(), set(
             [os.path.join(potential_path, alias.name) for alias in obj.names]
         )
 
     vprint(f"import is global: {obj.module}")
 
-    return [obj.module], list()
+    return {obj.module}, set()
 
 
 def parse_input_file(input_file: str) -> ast.AST:
@@ -490,7 +490,7 @@ def modules_from_ast_import_object(
     T = type(obj)
     if T is ast.ImportFrom:
         # from abc import xyz (as ijk)
-        import_set = list()
+        import_set = set()
 
         global_imports, local_imports_files = get_module_names_in_import_from_obj(
             obj, current_path, args
@@ -501,8 +501,8 @@ def modules_from_ast_import_object(
         # import abc (as xyz)
         assert T is ast.Import
         # TODO: check for local import
-        global_imports = list()
-        local_import_files = list()
+        global_imports = set()
+        local_import_files = set()
         for alias in obj.names:
             import_name = alias.name
             if "." in import_name:
@@ -516,11 +516,11 @@ def modules_from_ast_import_object(
                         files_in_dir(file_path_dir),
                     )
                 ):
-                    local_import_files.append(file_path)
+                    local_import_files.add(file_path)
                     continue
 
             # default step
-            global_imports.append(get_module_name_in_simple_import(import_name))
+            global_imports.add(get_module_name_in_simple_import(import_name))
         return global_imports, local_import_files
 
 
@@ -533,9 +533,9 @@ def handle_ast_object(
     assert issubclass(T, ast.AST)
 
     if not args["blocks"] and T in [ast.If, ast.With, ast.Try]:
-        return list(), list()
+        return set(), set()
     if not args["functions"] and T is ast.FunctionDef:
-        return list(), list()
+        return set(), set()
 
     # is the current ast object an import ?
     if T is ast.Import or T is ast.ImportFrom:
@@ -545,9 +545,9 @@ def handle_ast_object(
         vprint(f"global: {global_deps}, local files: {local_deps_files}")
         return global_deps, local_deps_files
 
-    modules: set[str] = list()
+    modules: set[str] = set()
     # try to iterate through python object properties that could, somewhere deeply nested, have ast-import objects in them
-    global_deps, local_deps_files = list(), list()
+    global_deps, local_deps_files = set(), set()
     for attr_name, attr_value in filter(
         lambda key_value: not key_value[0].startswith("_"), obj.__dict__.items()
     ):
@@ -561,8 +561,8 @@ def handle_ast_object(
                 sub_global_deps, sub_local_deps_files = handle_ast_object(
                     sub_obj, ast_path, args
                 )
-                global_deps.extend(sub_global_deps)
-                local_deps_files.extend(sub_local_deps_files)
+                global_deps |= sub_global_deps
+                local_deps_files |= sub_local_deps_files
     return global_deps, local_deps_files
 
 
@@ -582,8 +582,8 @@ def find_file_dependencies(
 
     # add file to the read files
     if input_file in READ_FILES:
-        return list()
-    READ_FILES.append(input_file)
+        return set()
+    READ_FILES.add(input_file)
 
     dirpath = os.path.dirname(input_file)
     global_dependencies, local_dependencies_file_set = handle_ast_object(
@@ -603,7 +603,7 @@ def find_file_dependencies(
             # add the local import ?
             if not args["remove_local_imports"]:
                 vprint(f"adding local import: {local_import_name}")
-                global_dependencies.append(local_import_name)
+                global_dependencies.add(local_import_name)
 
             # follow the local import ?
             if args["follow_local_imports"] and (
@@ -612,9 +612,7 @@ def find_file_dependencies(
                 # TODO: make sure we don't follow circular imports
                 # python only seems to accept *.py files
                 vprint(f"following local import: {local_import_name}")
-                global_dependencies.extend(
-                    find_file_dependencies(local_import_file_path, as_tree, args)
-                )
+                global_dependencies |= find_file_dependencies(local_import_file_path, as_tree, args)
 
     return global_dependencies
 
@@ -697,7 +695,7 @@ def main() -> None:
     for i in range(num_pairs):
         vprint(f"Doing AST {i+1}/{num_pairs}")
         file_path, as_tree = file_path_tree_pairs[i]
-        DEPENDENCIES.extend(find_file_dependencies(file_path, as_tree, args))
+        DEPENDENCIES |= find_file_dependencies(file_path, as_tree, args)
 
     # remove the python stdlib dependencies ?
     if args["removal_policy"] % 2 == 0:
