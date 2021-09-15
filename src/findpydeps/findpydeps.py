@@ -414,7 +414,7 @@ def get_module_names_in_import_from_obj(
         if obj.level == 0:
             vprint(f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}")
             return list(), list()
-        obj.module = "../" * (obj.level - 1)
+        obj.module = "." * obj.level
         print("NONE: Changing obj.module to", obj.module)
 
     elif obj.level != 0:
@@ -455,22 +455,9 @@ def get_module_names_in_import_from_obj(
 
         return list(), list([os.path.join(potential_path, alias.name) for alias in obj.names])
 
-    print(obj.__dict__, current_path, potential_path)
-    sys.exit("QWERTY")  # TODO: remove this, or explore this at least
+    print("global obj.module", obj.__dict__, current_path, potential_path)
 
-    if False:
-        raw_name = obj.module
-        if any(map(
-                    lambda fn: os.path.basename(fn).split(".py")[0] == raw_name
-                    if fn.count(".py") > 0
-                    else False,
-                    files_in_dir(current_path),
-                )):
-            # import is local
-            return list(), [os.path.join(current_path, raw_name)]
-        else:
-            # import is non-local
-            return [raw_name], list()
+    return [obj.module], list()
 
 
 def parse_input_file(input_file: str) -> ast.AST:
@@ -502,51 +489,30 @@ def modules_from_ast_import_object(
         )
 
         return global_imports, local_imports_files
-
-        """
-        if obj.level != 0:
-            # relative & local import
-            additional_imports = list()
-            if args["follow_local_imports"]:
-                # follow the local imports
-                if obj.module:
-                    # get the imports
-                    global_imports, local_imports = get_module_names_in_import_from_obj(
-                        obj, current_path, args
-                    )
-                    # add the global imports
-                    additional_imports .extend( global_imports
-                    # add the local imports if should be done
-                    if not args["remove_local_imports"]:
-                        additional_imports .extend( local_imports
-
-                    print("following explicit local imports ...", additional_imports)
-                    print(obj.__dict__)
-                    print(obj.names[0].__dict__)
-                    sys.exit("end")
-
-                return additional_imports
-            elif args["remove_local_imports"]:
-                # do not follow and remove local imports
-                return list()
-            elif obj.module:
-                # do not follow and do not remove local imports (apparent non-local import)
-                return get_module_names_in_import_from_obj(obj, current_path, args)
-            else:
-                # TODO: look into this case (possible? warning?)
-                return list()
-        elif obj.module:
-            # apparent non-local import
-            return get_module_names_in_import_from_obj(obj, current_path, args)
-        else:
-            # TODO: look into this case (possible? warning?)
-            return list()
-        """
     else:
         # import abc (as xyz)
         assert T is ast.Import
         # TODO: check for local import
-        return list(map(lambda alias: get_module_name_in_simple_import(alias.name), obj.names)), list()
+        global_imports = list()
+        local_import_files = list()
+        for alias in obj.names:
+            import_name = alias.name
+            if "." in import_name:
+                file_path = path_from_relative_import(current_path, import_name)[1]
+                file_path_dir = os.path.dirname(file_path)
+                if os.path.isdir(file_path_dir) and any(map(
+                        lambda fn: os.path.basename(fn).split(".py")[0] == import_name
+                        if fn.count(".py") > 0
+                        else False,
+                        files_in_dir(file_path_dir),
+                    )
+                ):
+                    local_import_files.append(file_path)
+                    continue
+
+            # default step
+            global_imports.append(get_module_name_in_simple_import(import_name))
+        return global_imports, local_import_files
 
 
 def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tuple[set[str], set[str], set[str]]:
@@ -627,6 +593,7 @@ def find_file_dependencies(
             if args["follow_local_imports"] and (
                 as_tree := parse_input_file(local_import_file_path + ".py")
             ):
+                # TODO: make sure we don't follow circular imports
                 # python only seems to accept *.py files
                 vprint(f"following local import: {local_import_name}")
                 global_dependencies .extend( find_file_dependencies(local_import_file_path, as_tree, args))
