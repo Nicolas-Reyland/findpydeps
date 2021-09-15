@@ -365,7 +365,9 @@ def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool & s
 
     # case where we only have dots '.'
     if import_str.count(".") == import_str_len:
-        return True, os.path.abspath(os.path.join(base_path, *parse_multiple_dots_expr(import_str_len)))
+        return True, os.path.abspath(
+            os.path.join(base_path, *parse_multiple_dots_expr(import_str_len))
+        )
 
     # start extracting from the import str ...
     separate_path_exprs: list[str] = list()
@@ -408,21 +410,21 @@ parse_multiple_dots_expr = lambda num_dots: [".." for _ in range(num_dots - 1)]
 def get_module_names_in_import_from_obj(
     obj: ast.ImportFrom, current_path: str, args: dict[str, bool]
 ) -> tuple[set[str], set[str]]:
-    """ first set: non-local imports & second set: file paths of the local imports """
-    print("get_module_names_in_import_from_obj", current_path, obj.module, obj.level)
+    """first set: non-local imports & second set: file paths of the local imports"""
     if not obj.module:
         if obj.level == 0:
-            vprint(f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}")
+            vprint(
+                f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}"
+            )
             return list(), list()
         obj.module = "." * obj.level
-        print("NONE: Changing obj.module to", obj.module)
+        vprint("NONE: Changing obj.module to", obj.module)
 
     elif obj.level != 0:
         obj.module = "." * obj.level + obj.module
-        print("LVL: Changed obj.module to", obj.module)
+        vprint("LVL: Changed obj.module to", obj.module)
 
     must_be_dir, potential_path = path_from_relative_import(current_path, obj.module)
-    print(f"(potential_path: {potential_path})")
     # first check for files, then for directories (tested in python 3.8.10)
     potential_path_dirname = os.path.dirname(potential_path)
     potential_path_filename = os.path.basename(potential_path)
@@ -435,27 +437,33 @@ def get_module_names_in_import_from_obj(
         and os.path.isdir(potential_path_dirname)
         and any(
             map(
-                lambda fn: os.path.basename(fn).split(".py")[0] == potential_path_filename
+                lambda fn: os.path.basename(fn).split(".py")[0]
+                == potential_path_filename
                 if fn.count(".py") > 0
                 else False,
                 files_in_dir(potential_path_dirname),
             )
         )
     ):
-        print("filename", potential_path_filename)
+        vprint(f"import refers to a file: {potential_path_filename}")
         return list(), [potential_path]
     if os.path.isdir(potential_path):
-        print("isdir")
-        print(obj.__dict__)
-        print(obj.names, obj.names[0].__dict__)
+        vprint(f"import refers to a directory: {potential_path}")
 
         if len(obj.names) == 1 and obj.names[0].name == "*":
             # python 3.9 : return list(), list(map(lambda fp: fp.removesuffix(".py"), fnmatch.filter(files_in_dir(potential_path), "*.py")))
-            return list(), list(map(lambda fp: fp[:-3], fnmatch.filter(files_in_dir(potential_path), "*.py")))
+            return list(), list(
+                map(
+                    lambda fp: fp[:-3],
+                    fnmatch.filter(files_in_dir(potential_path), "*.py"),
+                )
+            )
 
-        return list(), list([os.path.join(potential_path, alias.name) for alias in obj.names])
+        return list(), list(
+            [os.path.join(potential_path, alias.name) for alias in obj.names]
+        )
 
-    print("global obj.module", obj.__dict__, current_path, potential_path)
+    vprint(f"import is global: {obj.module}")
 
     return [obj.module], list()
 
@@ -500,7 +508,8 @@ def modules_from_ast_import_object(
             if "." in import_name:
                 file_path = path_from_relative_import(current_path, import_name)[1]
                 file_path_dir = os.path.dirname(file_path)
-                if os.path.isdir(file_path_dir) and any(map(
+                if os.path.isdir(file_path_dir) and any(
+                    map(
                         lambda fn: os.path.basename(fn).split(".py")[0] == import_name
                         if fn.count(".py") > 0
                         else False,
@@ -515,7 +524,9 @@ def modules_from_ast_import_object(
         return global_imports, local_import_files
 
 
-def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tuple[set[str], set[str], set[str]]:
+def handle_ast_object(
+    obj: ast.AST, ast_path: str, args: dict[str, bool]
+) -> tuple[set[str], set[str], set[str]]:
     global vprint
 
     T = type(obj)
@@ -528,7 +539,9 @@ def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tup
 
     # is the current ast object an import ?
     if T is ast.Import or T is ast.ImportFrom:
-        global_deps, local_deps_files = modules_from_ast_import_object(obj, ast_path, args)
+        global_deps, local_deps_files = modules_from_ast_import_object(
+            obj, ast_path, args
+        )
         vprint(f"global: {global_deps}, local files: {local_deps_files}")
         return global_deps, local_deps_files
 
@@ -545,9 +558,11 @@ def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tup
             and issubclass(type(attr_value[0]), ast.AST)
         ):
             for sub_obj in attr_value:
-                sub_global_deps, sub_local_deps_files = handle_ast_object(sub_obj, ast_path, args)
-                global_deps       .extend(       sub_global_deps)
-                local_deps_files  .extend(  sub_local_deps_files)
+                sub_global_deps, sub_local_deps_files = handle_ast_object(
+                    sub_obj, ast_path, args
+                )
+                global_deps.extend(sub_global_deps)
+                local_deps_files.extend(sub_local_deps_files)
     return global_deps, local_deps_files
 
 
@@ -571,9 +586,9 @@ def find_file_dependencies(
     READ_FILES.append(input_file)
 
     dirpath = os.path.dirname(input_file)
-    global_dependencies, local_dependencies_file_set = handle_ast_object(as_tree, dirpath, args)
-
-    print("local file list", local_dependencies_file_set)
+    global_dependencies, local_dependencies_file_set = handle_ast_object(
+        as_tree, dirpath, args
+    )
 
     # remove local imports? && following local imports?
     if args["remove_local_imports"] or args["follow_local_imports"]:
@@ -583,6 +598,7 @@ def find_file_dependencies(
             local_import_file_path = local_dependencies_file_set.pop()
             # get the local import name
             local_import_name = os.path.basename(local_import_file_path)
+            vprint(f"local import name: {local_import_name}")
 
             # add the local import ?
             if not args["remove_local_imports"]:
@@ -596,7 +612,9 @@ def find_file_dependencies(
                 # TODO: make sure we don't follow circular imports
                 # python only seems to accept *.py files
                 vprint(f"following local import: {local_import_name}")
-                global_dependencies .extend( find_file_dependencies(local_import_file_path, as_tree, args))
+                global_dependencies.extend(
+                    find_file_dependencies(local_import_file_path, as_tree, args)
+                )
 
     return global_dependencies
 
@@ -679,7 +697,7 @@ def main() -> None:
     for i in range(num_pairs):
         vprint(f"Doing AST {i+1}/{num_pairs}")
         file_path, as_tree = file_path_tree_pairs[i]
-        DEPENDENCIES .extend( find_file_dependencies(file_path, as_tree, args))
+        DEPENDENCIES.extend(find_file_dependencies(file_path, as_tree, args))
 
     # remove the python stdlib dependencies ?
     if args["removal_policy"] % 2 == 0:
