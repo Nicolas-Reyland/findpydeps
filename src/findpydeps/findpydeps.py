@@ -365,7 +365,7 @@ def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool & s
 
     # case where we only have dots '.'
     if import_str.count(".") == import_str_len:
-        return True, os.path.join(base_path, *parse_multiple_dots_expr(import_str_len))
+        return True, os.path.abspath(os.path.join(base_path, *parse_multiple_dots_expr(import_str_len)))
 
     # start extracting from the import str ...
     separate_path_exprs: list[str] = list()
@@ -394,7 +394,7 @@ def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool & s
         # remaining path expr (there must be a path expr, bc there are no dots, apparently)
         separate_path_exprs.append(path_buffer)
 
-    return False, os.path.join(base_path, *separate_path_exprs)
+    return False, os.path.abspath(os.path.join(base_path, *separate_path_exprs))
 
 
 get_module_name_in_simple_import = (
@@ -409,44 +409,56 @@ def get_module_names_in_import_from_obj(
     obj: ast.ImportFrom, current_path: str, args: dict[str, bool]
 ) -> tuple[set[str], set[str]]:
     """ first set: non-local imports & second set: file paths of the local imports """
+    print("get_module_names_in_import_from_obj", current_path, obj.module, obj.level)
     if not obj.module:
         if obj.level == 0:
             vprint(f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}")
             return list(), list()
-        obj.module = "." * (obj.level - 1)
-    if "." in obj.module:
-        must_be_dir, potential_path = path_from_relative_import(current_path, obj.module)
-        print(f"(potential_path: {potential_path})")
-        # first check for files, then for directories (tested in python 3.8.10)
-        potential_path_dirname = os.path.dirname(potential_path)
-        potential_path_filename = os.path.basename(potential_path)
-        # to check if file exists:
-        #  - make sure it can be a file, looking at the python import string (`not must_be_dir`)
-        #  - check if directory which it should be in exists
-        #  - check if any of the files in this directory are in this format: /(filename)(.py[^\.]*)/
-        if (
-            not must_be_dir
-            and os.path.isdir(potential_path_dirname)
-            and any(
-                map(
-                    lambda fn: os.path.basename(fn).split(".py")[0] == potential_path_filename
-                    if fn.count(".py") > 0
-                    else False,
-                    files_in_dir(potential_path_dirname),
-                )
+        obj.module = "../" * (obj.level - 1)
+        print("NONE: Changing obj.module to", obj.module)
+
+    elif obj.level != 0:
+        obj.module = "." * obj.level + obj.module
+        print("LVL: Changed obj.module to", obj.module)
+
+    must_be_dir, potential_path = path_from_relative_import(current_path, obj.module)
+    print(f"(potential_path: {potential_path})")
+    # first check for files, then for directories (tested in python 3.8.10)
+    potential_path_dirname = os.path.dirname(potential_path)
+    potential_path_filename = os.path.basename(potential_path)
+    # to check if file exists:
+    #  - make sure it can be a file, looking at the python import string (`not must_be_dir`)
+    #  - check if directory which it should be in exists
+    #  - check if any of the files in this directory are in this format: /(filename)(.py[^\.]*)/
+    if (
+        not must_be_dir
+        and os.path.isdir(potential_path_dirname)
+        and any(
+            map(
+                lambda fn: os.path.basename(fn).split(".py")[0] == potential_path_filename
+                if fn.count(".py") > 0
+                else False,
+                files_in_dir(potential_path_dirname),
             )
-        ):
-            print("filename", potential_path_filename)
-            return list(), [potential_path]
-        if os.path.isdir(potential_path):
-            print("isdir")
-            print(obj.__dict__)
-            print(obj.names, obj.names[0].__dict__)
+        )
+    ):
+        print("filename", potential_path_filename)
+        return list(), [potential_path]
+    if os.path.isdir(potential_path):
+        print("isdir")
+        print(obj.__dict__)
+        print(obj.names, obj.names[0].__dict__)
 
-            return list(), set([os.path.join(potential_path, alias.name) for alias in obj.names])
+        if len(obj.names) == 1 and obj.names[0].name == "*":
+            # python 3.9 : return list(), list(map(lambda fp: fp.removesuffix(".py"), fnmatch.filter(files_in_dir(potential_path), "*.py")))
+            return list(), list(map(lambda fp: fp[:-3], fnmatch.filter(files_in_dir(potential_path), "*.py")))
 
-        sys.exit("QWERTY")  # TODO: remove this, or explore this at least
-    else:
+        return list(), list([os.path.join(potential_path, alias.name) for alias in obj.names])
+
+    print(obj.__dict__, current_path, potential_path)
+    sys.exit("QWERTY")  # TODO: remove this, or explore this at least
+
+    if False:
         raw_name = obj.module
         if any(map(
                     lambda fn: os.path.basename(fn).split(".py")[0] == raw_name
@@ -534,7 +546,7 @@ def modules_from_ast_import_object(
         # import abc (as xyz)
         assert T is ast.Import
         # TODO: check for local import
-        return set(map(lambda alias: get_module_name_in_simple_import(alias.name), obj.names)), list()
+        return list(map(lambda alias: get_module_name_in_simple_import(alias.name), obj.names)), list()
 
 
 def handle_ast_object(obj: ast.AST, ast_path: str, args: dict[str, bool]) -> tuple[set[str], set[str], set[str]]:
