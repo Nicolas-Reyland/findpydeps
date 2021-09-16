@@ -966,6 +966,6 @@ def main() -> None:
     sys.exit(0)
 
 
-#
+# Used as the main file: run the main function
 if __name__ == "__main__":
     main()
