@@ -682,7 +682,6 @@ def handle_ast_object(
 
     """
 
-
     global vprint
 
     T = type(obj)
@@ -731,6 +730,28 @@ def files_in_dir(dirpath: str) -> filter[str]:
 def find_file_dependencies(
     input_file: str, as_tree: ast.AST, args: dict[str, bool]
 ) -> set[str]:
+    """Find the python dependencies used in a python file
+
+    Searches through a python file, using it's AST, looking for
+    dependencies. Local imports can be filtered out. They can also
+    be `followed`. This can be configured with the `args`.
+
+    Parameters
+    ----------
+    input_file : str
+        Input python file
+    as_tree : ast.AST
+        Python Abstract Syntax Tree of the python source code in the file `input_file`
+    args : dict[str, bool]
+        The command-line arguments given to this script
+
+    Returns
+    -------
+    file_dependencies : set[str]
+        Set of python modules/dependencies used in the python file `input_file`
+
+    """
+
     global READ_FILES, vprint
 
     # assert this so we know the path is unique
@@ -807,6 +828,9 @@ def parse_python_file(file_path: str) -> ast.AST:
 
 # - Main function -
 def main() -> None:
+    """Main function for the findpydeps script
+    """
+
     global parser, DEPENDENCIES, USAGE_MSG, ROOT_DIR, PYPI_MODULES_LIST_FILE_NAME, vprint
 
     # no args ?
