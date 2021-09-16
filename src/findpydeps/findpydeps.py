@@ -657,9 +657,12 @@ def modules_from_ast_import_object(
 def handle_ast_object(
     obj: ast.AST, ast_path: str, args: dict[str, bool]
 ) -> tuple[set[str], set[str]]:
-    """Go through an abstract ast.AST (derived or not) object
+    """Go through an abstract ast.AST (derived or not) objects
 
-    X
+    To go through ast.AST object, looking for ast.Import and
+    ast.ImportFrom objects. It is looking for objects derived
+    from the `ast.AST` class. Then, we iterate through the attributes
+    and their values, if iterable.
 
     Parameters
     ----------
@@ -806,6 +809,11 @@ def parse_python_file(file_path: str) -> ast.AST:
     ----------
     file_path : str
         Path of the python source code file
+
+    Returns
+    -------
+    tree : ast.AST
+        Abstract Syntax Tree of the python file `file_path`
 
     """
 
