@@ -3,7 +3,34 @@ from __future__ import annotations
 from __future__ import print_function
 from __future__ import with_statement
 
-# Find Python Dependencies
+""" Python Script to find dependencies/modules from import-statements in python files
+
+usage: findpydeps [-h] [-i input [input ...]] [-d expr] [-r policy] [-l] [-s] [--blocks] [--no-blocks] [--functions] [--no-functions] [-v] [--header] [--no-header]
+
+Find the python dependencies used by your python files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i input [input ...], --input input [input ...]
+                        input files and/or directories (directories will be scanned for *.py files)
+  -d expr, --dir-scanning-expr expr
+                        only process files with this expression in scanned directories [default: *.py]
+  -r policy, --removal-policy policy
+                        removal policy for modules (0: local & stdlib, 1: local only, 2: stdlib only, 3: no removal) [default: 0]
+  -l, --follow-local-imports
+                        follow imports for local files
+  -s, --strict          raise an error on SyntaxErrors in the input python files
+  --blocks              scan contents of 'if', 'try' and 'with' blocks
+  --no-blocks           don't scan contents of 'if', 'try' and 'with' blocks
+  --functions           scan contents of functions
+  --no-functions        don't scan contents of functions
+  -v, --verbose         verbose mode (all messages prepended with '#')
+  --header              show the greeting header
+  --no-header           don't show the greeting header
+
+"""
+
+# Python Dependencies
 from argparse import ArgumentParser
 import os, sys, fnmatch
 import ast
