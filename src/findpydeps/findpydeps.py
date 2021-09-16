@@ -852,6 +852,24 @@ def parse_python_file(file_path: str) -> ast.AST:
 # - Main function -
 def main() -> None:
     """Main function for the findpydeps script
+
+    Those are the steps by this function :
+     * Parse and validate the command line arguments
+     * Scan the directories that were given, if any
+     * Print the header, unless asked not to
+     * Setup the verbose context
+     * Parse all the input files into trees (AST)
+     * Find all the dependencies (`find_file_dependencies`)
+     * Remove the python std libraries, except not asked to (arg removal_policy)
+
+    Raises
+    ------
+    Argumenterror
+        No input given (arg input) || Invalid repoval policy
+    OSError
+        One of the inputs (arg input) is neither a file, nor a directory
+        (e.g. ~broken symlink ?)
+
     """
 
     global parser, DEPENDENCIES, USAGE_MSG, ROOT_DIR, PYPI_MODULES_LIST_FILE_NAME, vprint
@@ -866,11 +884,11 @@ def main() -> None:
 
     # assert input was given
     if not args["input"]:
-        raise ValueError(f'Missing argument "input" (-i/--input). {USAGE_MSG}')
+        raise ArgumentError(f'Missing argument "input" (-i/--input). {USAGE_MSG}')
 
     # validate removal policy
     if args["removal_policy"] < 0 or args["removal_policy"] > 3:
-        raise ValueError(
+        raise ArgumentError(
             f'Invalid removal policy: {args["removal_policy"]}. {USAGE_MSG}'
         )
 
