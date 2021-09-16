@@ -395,7 +395,7 @@ def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool, st
             Path to the file or directory that the python import string is referring to
 
     Raises
-    -----
+    ------
     AssertionError
         If the import string `import_str` is empty.
 
@@ -605,6 +605,11 @@ def modules_from_ast_import_object(
             Set of the files that are imported locally. Their extension (".py") is stripped from
             the string value
 
+    Raises
+    ------
+    AssertionError
+        The `obj` is neither a ast.Import, nor a ast.ImportFrom
+
     """
 
     global vprint
@@ -683,6 +688,11 @@ def handle_ast_object(
             Set of the files that are imported locally. Their extension (".py") is stripped from
             the string value
 
+    Raises
+    ------
+    AssertionError
+        The `obj` is not derived from the ast.AST abstract class
+
     """
 
     global vprint
@@ -752,6 +762,11 @@ def find_file_dependencies(
     -------
     file_dependencies : set[str]
         Set of python modules/dependencies used in the python file `input_file`
+
+    Raises
+    ------
+    AssertionError
+        The `input_file` is not an absolute path
 
     """
 
