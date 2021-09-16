@@ -29,7 +29,6 @@ python3 -m pip install -r requirements.txt
 ```
 
 ## Todo
- * Follow relative imports with the `-l`/`--follow-local-imports` switch
  * Verify package names on pypi.org (check if installable via pip)
  * Exclude package names option
  * Add package names option
