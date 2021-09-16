@@ -440,7 +440,7 @@ def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool, st
     return False, os.path.abspath(os.path.join(base_path, *separate_path_exprs))
 
 
-def get_module_name_in_simple_import(import_name : str) -> str:
+def get_module_name_in_simple_import(import_name: str) -> str:
     """Get the main module name from a simple import
 
     A simple import is a python import in the form of /import .* (as .*)/
