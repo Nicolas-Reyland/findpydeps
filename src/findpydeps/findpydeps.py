@@ -344,6 +344,19 @@ vprint = lambda *a, **k: None
 
 # Custom Exception
 class ArgumentError(Exception):
+    """
+    A class used for custom Argument Errors
+
+    This class will be used when argument values are not valid, or when
+    no values are given.
+
+    Attributes
+    ----------
+    message : str
+        Error message
+
+    """
+
     def __init__(self, *args):
         if args:
             self.message = args[0]
@@ -359,14 +372,42 @@ class ArgumentError(Exception):
 
 
 # Functions
-def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool & str]:
+def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool, str]:
+    """Builds the path corresponging to a python relative import string
+
+    Relative imports in python often have dots "." in them. Calculations of
+    import paths starting with double dots ".." or more are done using the
+    relative import value (ast.ImportFrom.level).
+
+    Parameters
+    ---------
+    base_path : str
+        Path of the python source code file in which the import is done
+    import_str : str
+        Import string (e.g. "folder1.folder2.file")
+
+    Returns
+    -------
+    import_path : tuple[bool, str]
+        must_be_a_directory : bool
+            Boolean telling us if the path must be a directory
+        import_path : str
+            Path to the file or directory that the python import string is referring to
+
+    Raises
+    -----
+    AssertionError
+        If the import string `import_str` is empty.
+
+    """
+
     import_str_len: int = len(import_str)
     assert import_str_len > 0
 
     # case where we only have dots '.'
     if import_str.count(".") == import_str_len:
         return True, os.path.abspath(
-            os.path.join(base_path, *parse_multiple_dots_expr(import_str_len))
+            os.path.join(base_path, *num_dots_to_path_expr_list(import_str_len))
         )
 
     # start extracting from the import str ...
@@ -384,14 +425,14 @@ def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool & s
         else:
             # b4 adding the char or anything, process the dots if not done
             if num_dots != 0:
-                separate_path_exprs.extend(parse_multiple_dots_expr(num_dots))
+                separate_path_exprs.extend(num_dots_to_path_expr_list(num_dots))
                 num_dots = 0
             path_buffer += c
 
     # process the last path expr
     if num_dots:
         # remaining dots
-        separate_path_exprs.extend(parse_multiple_dots_expr(num_dots))
+        separate_path_exprs.extend(num_dots_to_path_expr_list(num_dots))
     else:
         # remaining path expr (there must be a path expr, bc there are no dots, apparently)
         separate_path_exprs.append(path_buffer)
@@ -399,18 +440,85 @@ def path_from_relative_import(base_path: str, import_str: str) -> tuple[bool & s
     return False, os.path.abspath(os.path.join(base_path, *separate_path_exprs))
 
 
-get_module_name_in_simple_import = (
-    lambda import_name: import_name.split(".")[0] if "." in import_name else import_name
-)
+def get_module_name_in_simple_import(import_name : str) -> str:
+    """Get the main module name from a simple import
+
+    A simple import is a python import in the form of /import .* (as .*)/
+    Returns the name of the main module. Remember that you can do imports such as
+    "import numpy.random as rd", where you would only want the "numpy" part, not
+    "numpy.random" or "random".
+
+    Parameters
+    ---------
+    import_str : str
+        Import string (e.g. "math", "matplotlib.pylab")
+
+    Returns
+    -------
+    module_name : str
+        Name of the python module
+
+    """
+
+    return import_name.split(".")[0] if "." in import_name else import_name
 
 
-parse_multiple_dots_expr = lambda num_dots: [".." for _ in range(num_dots - 1)]
+def num_dots_to_path_expr_list(num_dots: int) -> list[str]:
+    """Get the list of path expr associated with the number of dots given
+
+    Some environments allow you to express path-like object using more than two
+    dots "..". The additional dots are used to express additional backward movements.
+    For example: "..." mean "../.." and "....." means "../../../..".
+
+    Parameters
+    ----------
+    num_dots : int
+        Number of dots in the path expression
+
+    Returns
+    -------
+    path_expr_list : list[str]
+        List containing (num_dots - 1) times the ".." string
+
+    """
+
+    return [".." for _ in range(num_dots - 1)]
 
 
-def get_module_names_in_import_from_obj(
+def get_module_names_in_importfrom_obj(
     obj: ast.ImportFrom, current_path: str, args: dict[str, bool]
 ) -> tuple[set[str], set[str]]:
-    """first set: non-local imports & second set: file paths of the local imports"""
+    """Get the names of the modules that are used in an from-import statement
+
+    The from-import statement in python (e.g. "from math import sin, cos") lets you
+    import python objects (variables, classes, functions, modules) from the import source.
+    The source is, most of the time, referrning a python source file. You therefore often
+    only import from a single python source file when doing a from import. But newer python
+    import syntax lets you import multiple files from a directory using the from statement
+    (e.g. "from .folder import file1, file2", "from .. import *"). You therefore can have
+    multiple module imports in a single from-import.
+
+    Parameters
+    ----------
+    obj : ast.ImportFrom
+        ImportFrom object from the python standard lib "ast" module
+    current_path : str
+        The path of the file in which the import is stated
+    args : dict[str, bool]
+        The command-line arguments given to this script
+
+    Returns
+    -------
+    all_imports : tuple[set[str], set[str]]
+        global_imports : set[str]
+            Global imports, not referring to a local file (except you played with the sys.path or
+            other inpredictable pythonic sutff)
+        local_import_files : set[str]
+            Set of the files that are imported locally. Their extension (".py") is stripped from
+            the string value
+
+    """
+
     if not obj.module:
         if obj.level == 0:
             vprint(
@@ -469,27 +577,36 @@ def get_module_names_in_import_from_obj(
     return {global_import}, set()
 
 
-def parse_input_file(input_file: str) -> ast.AST:
-    global vprint
-
-    if not os.path.isfile(input_file):
-        vprint(f"WARNING: input file does not exist: {input_file}")
-        return None
-
-    with open(input_file, "r") as file:
-        content = file.read()
-        try:
-            as_tree: ast.AST = ast.parse(content)
-        except SyntaxError as se:
-            vprint(f"Failed: {se}")
-            return None
-
-    return as_tree
-
-
 def modules_from_ast_import_object(
     obj: ast.Import | ast.ImportFrom, current_path: str, args: dict[str, bool]
 ) -> tuple[set[str], set[str]]:
+    """Get the modules that are imported in a python import object
+
+    There are two types of python imports: simple imports (import .* as .*) and
+    from-imports (from .* import .*). This function returns the set of global and
+    local imports
+
+    Parameters
+    ----------
+    obj: ast.Import | ast.ImportFrom
+        Python import object
+    current_path: str
+        Path of the python source code file in which the import is done
+    args : dict[str, bool]
+        The command-line arguments given to this script
+
+    Returns
+    -------
+    all_imports : tuple[set[str], set[str]]
+        global_imports : set[str]
+            Global imports, not referring to a local file (except you played with the sys.path or
+            other inpredictable pythonic sutff)
+        local_import_files : set[str]
+            Set of the files that are imported locally. Their extension (".py") is stripped from
+            the string value
+
+    """
+
     global vprint
 
     T = type(obj)
@@ -497,7 +614,7 @@ def modules_from_ast_import_object(
         # from abc import xyz (as ijk)
         import_set = set()
 
-        global_imports, local_import_files = get_module_names_in_import_from_obj(
+        global_imports, local_import_files = get_module_names_in_importfrom_obj(
             obj, current_path, args
         )
 
@@ -539,7 +656,33 @@ def modules_from_ast_import_object(
 
 def handle_ast_object(
     obj: ast.AST, ast_path: str, args: dict[str, bool]
-) -> tuple[set[str], set[str], set[str]]:
+) -> tuple[set[str], set[str]]:
+    """Go through an abstract ast.AST (derived or not) object
+
+    X
+
+    Parameters
+    ----------
+    obj: ast.AST
+        Python code Abstract Syntax Tree
+    ast_path: str
+        Path of the python source code file described by the AST
+    args : dict[str, bool]
+        The command-line arguments given to this script
+
+    Returns
+    -------
+    all_imports : tuple[set[str], set[str]]
+        global_imports : set[str]
+            Global imports, not referring to a local file (except you played with the sys.path or
+            other inpredictable pythonic sutff)
+        local_import_files : set[str]
+            Set of the files that are imported locally. Their extension (".py") is stripped from
+            the string value
+
+    """
+
+
     global vprint
 
     T = type(obj)
@@ -620,7 +763,7 @@ def find_file_dependencies(
 
             # follow the local import ?
             if args["follow_local_imports"] and (
-                as_tree := parse_input_file(local_import_file_path + ".py")
+                as_tree := parse_python_file(local_import_file_path + ".py")
             ):
                 # TODO: make sure we don't follow circular imports
                 # python only seems to accept *.py files
@@ -630,6 +773,36 @@ def find_file_dependencies(
                 )
 
     return global_dependencies
+
+
+def parse_python_file(file_path: str) -> ast.AST:
+    """Parse the input file into an AST
+
+    Parse the python source code input file into a python
+    Abstract Syntax Tree (from ast.AST).
+
+    Parameters
+    ----------
+    file_path : str
+        Path of the python source code file
+
+    """
+
+    global vprint
+
+    if not os.path.isfile(file_path):
+        vprint(f"WARNING: input file does not exist: {file_path}")
+        return None
+
+    with open(file_path, "r") as file:
+        content = file.read()
+        try:
+            as_tree: ast.AST = ast.parse(content)
+        except SyntaxError as se:
+            vprint(f"Failed: {se}")
+            return None
+
+    return as_tree
 
 
 # - Main function -
@@ -699,7 +872,7 @@ def main() -> None:
     file_path_tree_pairs: list[tuple[str & ast.AST]] = list()
     for input_file in input_files:
         vprint(f'Parsing tree for: "{input_file}"')
-        if as_tree := parse_input_file(input_file):
+        if as_tree := parse_python_file(input_file):
             file_path_tree_pairs.append((input_file, as_tree))
 
     vprint()
