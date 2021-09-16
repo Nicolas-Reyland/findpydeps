@@ -864,7 +864,7 @@ def main() -> None:
 
     Raises
     ------
-    Argumenterror
+    ArgumentError
         No input given (arg input) || Invalid repoval policy
     OSError
         One of the inputs (arg input) is neither a file, nor a directory
