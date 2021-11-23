@@ -868,7 +868,10 @@ def parse_python_file(file_path: str) -> ast.AST:
         return None
 
     with open(file_path, "r") as file:
-        content = file.read()
+        try:
+            content = file.read()
+        except UnicodeDecodeError:
+            return None
         try:
             as_tree: ast.AST = ast.parse(content)
         except SyntaxError as se:
