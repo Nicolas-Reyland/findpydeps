@@ -63,5 +63,4 @@ optional arguments:
 
 
 ## Todo
- * Verify package names on pypi.org (check if installable via pip)
- * Exclude/Include custom package names option
+ * Option to manually exclude/include modules
