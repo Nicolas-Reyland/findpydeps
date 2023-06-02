@@ -1,3 +1,7 @@
+[![Downloads](https://static.pepy.tech/badge/findpydeps)](https://pepy.tech/project/findpydeps)
+[![Downloads](https://static.pepy.tech/badge/findpydeps/month)](https://pepy.tech/project/findpydeps)
+[![Downloads](https://static.pepy.tech/badge/findpydeps/week)](https://pepy.tech/project/findpydeps)
+
 # findpydeps
 Find the python dependencies used by your python files and projects.
 
