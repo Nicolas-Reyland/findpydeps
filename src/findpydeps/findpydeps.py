@@ -125,6 +125,14 @@ parser.add_argument(
     help="don't scan contents of functions",
 )
 
+parser.add_argument(
+    "--submodules-as-modules",
+    dest="submodules",
+    action="store_true",
+    help='submodule imports are treated as module-imports (e.g. "import random.shuffle" generates "random.shuffle", '
+         'not "random", which is the default behavior)',
+)
+
 parser.set_defaults(functions=True)
 
 parser.add_argument(
@@ -667,7 +675,7 @@ def modules_from_ast_import_object(
                 continue
 
             # default step
-            global_imports.add(import_name if args["submodule"] else get_module_name_in_simple_import(import_name))
+            global_imports.add(import_name if args["submodules"] else get_module_name_in_simple_import(import_name))
 
         vprint(f"simple import: {global_imports}, {local_imports}")
         return global_imports, local_imports
