@@ -5,11 +5,12 @@ from __future__ import with_statement
 
 """ Python Script to find dependencies/modules from import-statements in python files
 
-usage: findpydeps [-h] [-i input [input ...]] [-d expr] [-r policy] [-l] [-s] [--blocks] [--no-blocks] [--functions] [--no-functions] [-v] [--header] [--no-header]
+usage: findpydeps.py [-h] [-i input [input ...]] [-d expr] [-r policy] [-l] [-s] [--blocks] [--no-blocks] [--functions] [--no-functions] [--submodules-as-modules] [-v] [--header]
+                     [--no-header]
 
 Find the python dependencies used by your python files
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -i input [input ...], --input input [input ...]
                         input files and/or directories (directories will be scanned for *.py files)
@@ -24,6 +25,8 @@ optional arguments:
   --no-blocks           don't scan contents of 'if', 'try' and 'with' blocks
   --functions           scan contents of functions
   --no-functions        don't scan contents of functions
+  --submodules-as-modules
+                        submodule imports are treated as module-imports (e.g. "import random.shuffle" generates "random.shuffle", not "random", which is the default behavior)
   -v, --verbose         verbose mode (all messages prepended with '#')
   --header              show the greeting header
   --no-header           don't show the greeting header
@@ -78,14 +81,15 @@ parser.add_argument(
     metavar="policy",
     type=int,
     default=0,
-    help="removal policy for modules (0: local & stdlib, 1: local only, 2: stdlib only, 3: no removal) [default: %(default)s]",
+    help="removal policy for modules (0: local & stdlib, 1: local only, 2: stdlib only, 3: no removal) [default: %("
+         "default)s]",
 )
 
 parser.add_argument(
     "-l",
     "--follow-local-imports",
     action="store_true",
-    help="follow imports for local files",
+    help="also scan files which are imported locally (not libraries)",
 )
 
 parser.add_argument(
@@ -377,8 +381,10 @@ READ_FILES: set[str] = set()
 
 ROOT_DIR: str = os.path.dirname(os.path.abspath(__file__))
 
+
 # Lambdas
-vprint = lambda *a, **k: None
+def vprint(*__, **___):
+    ...
 
 
 # Custom Exception
@@ -561,7 +567,8 @@ def get_module_names_in_import_from_obj(
     if not obj.module:
         if obj.level == 0:
             vprint(
-                f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}"
+                f"WARNING: Bizarre import with level {obj.level}, but no module name ({obj.module}). "
+                f"Alias-names are {[alias.name for alias in obj.names]}. For more debugging: {obj.__dict__}"
             )
             return set(), set()
         obj.module = "." * obj.level
@@ -591,7 +598,8 @@ def get_module_names_in_import_from_obj(
         vprint(f"import refers to a directory: {potential_path}")
 
         if len(obj.names) == 1 and obj.names[0].name == "*":
-            # python 3.9 : return set(), set(map(lambda fp: fp.removesuffix(".py"), fnmatch.filter(files_in_dir(potential_path), "*.py")))
+            # python 3.9 : return set(), set(map(lambda fp: fp.removesuffix(".py"), fnmatch.filter(files_in_dir(
+            # potential_path), "*.py")))
             return set(), set(
                 map(
                     lambda fp: fp[:-3],
@@ -644,13 +652,9 @@ def modules_from_ast_import_object(
 
     """
 
-    global vprint
-
-    T = type(obj)
-    if T is ast.ImportFrom:
+    t = type(obj)
+    if t is ast.ImportFrom:
         # from abc import xyz (as ijk)
-        import_set = set()
-
         global_imports, local_imports = get_module_names_in_import_from_obj(
             obj, current_path, args
         )
@@ -659,7 +663,7 @@ def modules_from_ast_import_object(
         return global_imports, local_imports
     else:
         # import abc (as xyz)
-        assert T is ast.Import
+        assert t is ast.Import
         global_imports = set()
         local_imports = set()
         for alias in obj.names:
@@ -717,25 +721,24 @@ def handle_ast_object(
 
     """
 
-    global vprint
+    t = type(obj)
+    assert issubclass(t, ast.AST)
 
-    T = type(obj)
-    assert issubclass(T, ast.AST)
-
-    if not args["blocks"] and T in [ast.If, ast.With, ast.Try]:
+    if not args["blocks"] and t in [ast.If, ast.With, ast.Try]:
         return set(), set()
-    if not args["functions"] and T is ast.FunctionDef:
+    if not args["functions"] and t is ast.FunctionDef:
         return set(), set()
 
     # is the current ast object an import ?
-    if T is ast.Import or T is ast.ImportFrom:
+    if t is ast.Import or t is ast.ImportFrom:
+        # declare 'obj' of being of one of those two types
+        obj: ast.Import | ast.ImportFrom
         global_deps, local_deps_files = modules_from_ast_import_object(
             obj, ast_path, args
         )
         vprint(f"global: {global_deps}, local files: {local_deps_files}")
         return global_deps, local_deps_files
 
-    modules: set[str] = set()
     # try to iterate through python object properties that could,
     # somewhere deeply nested, have ast-import objects in them
     global_deps, local_deps_files = set(), set()
@@ -791,7 +794,7 @@ def find_file_dependencies(
 
     """
 
-    global READ_FILES, vprint
+    global READ_FILES
 
     # assert this so we know the path is unique
     assert os.path.isabs(input_file)
@@ -853,8 +856,6 @@ def parse_python_file(file_path: str) -> ast.AST | None:
 
     """
 
-    global vprint
-
     if not os.path.isfile(file_path):
         vprint(f"WARNING: input file does not exist: {file_path}")
         return None
@@ -881,7 +882,7 @@ def main() -> None:
      * Parse and validate the command line arguments
      * Scan the directories that were given, if any
      * Print the header, unless asked not to
-     * Setup the verbose context
+     * Set up the verbose context
      * Parse all the input files into trees (AST)
      * Find all the dependencies (`find_file_dependencies`)
      * Remove the python std libraries, except not asked to (arg removal_policy)
@@ -896,7 +897,7 @@ def main() -> None:
 
     """
 
-    global parser, DEPENDENCIES, USAGE_MSG, ROOT_DIR, PYPI_MODULES_LIST_FILE_NAME, vprint
+    global parser, DEPENDENCIES, USAGE_MSG, ROOT_DIR, PYTHON_STANDARD_MODULES, vprint
 
     # no args ?
     if len(sys.argv) == 1:
