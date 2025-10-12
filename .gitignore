@@ -2,3 +2,4 @@
 dist/*
 src/findpydeps.egg-info/
 update-to-pypi.sh
+/.venv
