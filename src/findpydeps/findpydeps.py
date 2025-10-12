@@ -17,7 +17,7 @@ options:
   -d expr, --dir-scanning-expr expr
                         only process files with this expression in scanned directories [default: *.py]
   -r policy, --removal-policy policy
-                        removal policy for modules (0: local & stdlib, 1: local only, 2: stdlib only, 3: no removal) [default: 0]
+                        removal policy (filtering) for modules (0: local & stdlib, 1: local only, 2: stdlib only, 3: no removal) [default: 0]
   -l, --follow-local-imports
                         follow imports for local files
   -s, --strict          raise an error on SyntaxErrors in the input python files
